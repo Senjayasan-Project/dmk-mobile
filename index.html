@@ -896,16 +896,10 @@ img{max-width:100%;display:block}
 .admin-page-wrap .form-section{padding-left:0;padding-right:0}
 .admin-page-wrap .stats-row{padding-left:0;padding-right:0}
 
-/* ── Sembunyikan modal yang ada di page tidak aktif ── */
-/* Ini mencegah browser autocomplete dari form di luar viewport */
-.modal-sheet:not(.open) { visibility: hidden; }
-.modal-sheet.open { visibility: visible; }
-/* Sembunyikan input/select di luar page aktif dari browser autocomplete */
-.page:not(.active) input,
-.page:not(.active) select,
-.page:not(.active) textarea {
-  display: none !important;
-}
+/* ── Sembunyikan modal yang belum terbuka ── */
+.modal-sheet:not(.open) { pointer-events: none; }
+/* Sembunyikan field di page tidak aktif dari browser autocomplete */
+.page:not(.active) { display: none !important; }
 </style>
 </head>
 
@@ -2343,7 +2337,7 @@ function selectRole(el, role) {
 }
 
 // ── Login ─────────────────────────────────────────────────────
-function doLogin() { doLoginAsync(); }
+function doLogin() { doLoginAsync().catch(e => { const el=$("loginErr"); if(el){el.textContent="Error: "+e.message;el.style.display="block";} }); }
 
 // ── Logout ────────────────────────────────────────────────────
 function doLogout() {
@@ -3910,7 +3904,7 @@ function addAuditLog(action, detail) {
   localStorage.setItem('dmk_audit', JSON.stringify(logs));
 }
 
-function doLoginAsync() {
+async function doLoginAsync() {
   const u = $('loginUser').value.trim();
   const p = $('loginPass').value.trim();
   $('loginErr').style.display = 'none';
