@@ -895,6 +895,17 @@ img{max-width:100%;display:block}
 .admin-page-wrap .btn-group{padding-left:0;padding-right:0}
 .admin-page-wrap .form-section{padding-left:0;padding-right:0}
 .admin-page-wrap .stats-row{padding-left:0;padding-right:0}
+
+/* ── Sembunyikan modal yang ada di page tidak aktif ── */
+/* Ini mencegah browser autocomplete dari form di luar viewport */
+.modal-sheet:not(.open) { visibility: hidden; }
+.modal-sheet.open { visibility: visible; }
+/* Sembunyikan input/select di luar page aktif dari browser autocomplete */
+.page:not(.active) input,
+.page:not(.active) select,
+.page:not(.active) textarea {
+  display: none !important;
+}
 </style>
 </head>
 
@@ -912,6 +923,7 @@ img{max-width:100%;display:block}
     <div class="login-headline">DMK Portal</div>
     <div class="login-sub">Asphalt Distribution Management System</div>
     <div class="login-card">
+      <!-- Role Selector - bukan select element, bukan form field -->
       <div class="role-picker">
         <div class="role-chip active" id="chip-customer" onclick="selectRole(this,'customer')">
           <div style="font-size:18px;margin-bottom:2px;">🏢</div>Customer
@@ -920,16 +932,18 @@ img{max-width:100%;display:block}
           <div style="font-size:18px;margin-bottom:2px;">⚙️</div>Admin
         </div>
       </div>
-      <div class="login-input-wrap">
-        <span class="login-input-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
-        <input class="login-input" id="loginUser" type="text" placeholder="Username" autocomplete="username"/>
-      </div>
-      <div class="login-input-wrap">
-        <span class="login-input-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
-        <input class="login-input" id="loginPass" type="password" placeholder="Password" autocomplete="current-password"/>
-      </div>
-      <div class="login-err" id="loginErr"></div>
-      <button class="login-btn" onclick="doLogin()" id="loginBtn">Masuk</button>
+      <form id="login-form" onsubmit="doLogin();return false;" autocomplete="on" style="margin:0;padding:0">
+        <div class="login-input-wrap">
+          <span class="login-input-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+          <input class="login-input" id="loginUser" type="text" placeholder="Username" autocomplete="username" name="username"/>
+        </div>
+        <div class="login-input-wrap">
+          <span class="login-input-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+          <input class="login-input" id="loginPass" type="password" placeholder="Password" autocomplete="current-password" name="password"/>
+        </div>
+        <div class="login-err" id="loginErr"></div>
+        <button type="submit" class="login-btn" id="loginBtn">Masuk</button>
+      </form>
     </div>
     <div class="login-footer">v2.1 · DMK Group © 2025</div>
   </div>
@@ -1467,7 +1481,7 @@ img{max-width:100%;display:block}
 
 <!-- User Modal -->
 <div class="modal-backdrop" id="modal-user-backdrop" onclick="closeModal('user')"></div>
-<div class="modal-sheet" id="modal-user">
+<div class="modal-sheet" id="modal-user" autocomplete="off">
   <div class="modal-handle"></div>
   <div class="modal-header">
     <div class="modal-title" id="modal-user-title">Tambah User</div>
@@ -1475,15 +1489,15 @@ img{max-width:100%;display:block}
   </div>
   <div class="modal-body">
     <div class="form-row cols-2">
-      <div class="form-group"><label class="form-label">Nama Lengkap <span>*</span></label><input class="form-input" id="uf-name" placeholder="Nama"/></div>
-      <div class="form-group"><label class="form-label">Username <span>*</span></label><input class="form-input" id="uf-username" placeholder="username"/></div>
+      <div class="form-group"><label class="form-label">Nama Lengkap <span>*</span></label><input class="form-input" id="uf-name" autocomplete="off" name="mgmt-name" placeholder="Nama"/></div>
+      <div class="form-group"><label class="form-label">Username <span>*</span></label><input class="form-input" id="uf-username" autocomplete="off" name="mgmt-username" placeholder="username"/></div>
     </div>
     <div class="form-row cols-2">
-      <div class="form-group"><label class="form-label">Password <span>*</span></label><input class="form-input" id="uf-password" type="password" placeholder="••••••"/></div>
+      <div class="form-group"><label class="form-label">Password <span>*</span></label><input class="form-input" id="uf-password" type="password" autocomplete="new-password" name="mgmt-password" placeholder="••••••"/></div>
       <div class="form-group"><label class="form-label">Role <span>*</span></label>
-        <select class="form-select" id="uf-role"><option value="customer">Customer</option><option value="admin">Admin</option></select></div>
+        <select class="form-select" id="uf-role" autocomplete="off"><option value="customer">Customer</option><option value="admin">Admin</option></select></div>
     </div>
-    <div class="form-group"><label class="form-label">Nama Perusahaan</label><input class="form-input" id="uf-company" placeholder="PT. ..."/></div>
+    <div class="form-group"><label class="form-label">Nama Perusahaan</label><input class="form-input" id="uf-company" autocomplete="off" name="mgmt-company" placeholder="PT. ..."/></div>
   </div>
   <div class="modal-footer">
     <button class="btn btn-secondary" onclick="closeModal('user')">Batal</button>
@@ -3163,7 +3177,7 @@ async function refreshData() {
 
 // ── Keyboard shortcuts ────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && $('page-login')?.classList.contains('active')) doLogin();
+  // Enter key handled by login form onsubmit
   if (e.key === 'Escape') {
     ['so','do','track','verify','md','user'].forEach(id => {
       const sheet = $('modal-'+id);
