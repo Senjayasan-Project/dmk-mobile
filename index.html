@@ -932,7 +932,7 @@ img{max-width:100%;display:block}
           <div style="font-size:18px;margin-bottom:2px;">⚙️</div>Admin
         </div>
       </div>
-      <form id="login-form" onsubmit="doLogin();return false;" autocomplete="on" style="margin:0;padding:0">
+      <form id="login-form" onsubmit="event.preventDefault();doLogin();" autocomplete="on" style="margin:0;padding:0">
         <div class="login-input-wrap">
           <span class="login-input-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
           <input class="login-input" id="loginUser" type="text" placeholder="Username" autocomplete="username" name="username"/>
@@ -2350,7 +2350,7 @@ function doLogout() {
   if (!_sb) lsSave();
   DB.session = null;
   DB.po = []; DB.so = []; DB.dr = []; DB.doList = []; DB.receipts = [];
-  closeSidebar('customer'); closeSidebar('admin');
+  closeSidebar('cust'); closeSidebar('admin');
   showPage('login');
   $('loginUser').value = '';
   $('loginPass').value = '';
@@ -2429,8 +2429,7 @@ function custNav(sub) {
   const el = $('cust-page-title');
   if (el) el.textContent = titles[sub] || sub;
 
-  closeSidebar('customer');
-
+  closeSidebar('cust');
   // Render
   const renders = { po: renderPOList, so: renderSOList, dr: renderDRList, tracking: renderCustTracking, receipt: renderReceiptList };
   if (renders[sub]) renders[sub]();
@@ -3184,7 +3183,7 @@ document.addEventListener('keydown', e => {
       if (sheet?.classList.contains('open')) closeModal(id);
     });
     closeNotifPanel();
-    closeSidebar('customer'); closeSidebar('admin');
+    closeSidebar('cust'); closeSidebar('admin');
   }
 });
 
