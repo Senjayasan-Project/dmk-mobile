@@ -903,6 +903,22 @@ img{max-width:100%;display:block}
 .modal-sheet:not(.open) { pointer-events: none; }
 /* Sembunyikan field di page tidak aktif dari browser autocomplete */
 .page:not(.active) { display: none !important; }
+
+/* ===== FIX: Prevent page stacking ===== */
+.page{
+  display:none !important;
+  width:100%;
+  min-height:100vh;
+}
+.page.active{
+  display:flex !important;
+  flex-direction:column;
+}
+body{
+  margin:0;
+  overflow:hidden;
+}
+
 </style>
 </head>
 
@@ -911,7 +927,7 @@ img{max-width:100%;display:block}
 <!-- ══════════════════════════════════════════
      PAGE: LOGIN
 ════════════════════════════════════════════ -->
-<div class="page active" id="page-login">
+<div class="page active" id="page-login" class="page active">
   <div class="login-bg"></div>
   <div class="login-wrap">
     <div class="login-logo">
