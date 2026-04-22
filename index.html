@@ -7,7 +7,8 @@
 
 <title>DMK Portal</title>
 
-<!-- PWA -->
+<!-- ================= PWA ================= -->
+
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0057B8">
 
@@ -15,57 +16,66 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="DMK Portal">
 
+<!-- ================= SUPABASE SDK ================= -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
 
 body{
-  margin:0;
-  font-family:Arial;
-  background:#0A1628;
-  color:white;
+margin:0;
+font-family:Arial;
+background:#0A1628;
+color:white;
 }
 
 .page{
-  display:none;
-  min-height:100vh;
-  justify-content:center;
-  align-items:center;
-  flex-direction:column;
+display:none;
+min-height:100vh;
+justify-content:center;
+align-items:center;
+flex-direction:column;
 }
 
 .page.active{
-  display:flex;
+display:flex;
 }
 
 input{
-  padding:10px;
-  margin:6px;
-  border-radius:8px;
-  border:none;
+padding:12px;
+margin:6px;
+border-radius:10px;
+border:none;
+width:220px;
 }
 
 button{
-  padding:12px 18px;
-  border:none;
-  border-radius:10px;
-  background:#0057B8;
-  color:white;
-  cursor:pointer;
+padding:12px 20px;
+border:none;
+border-radius:12px;
+background:#0057B8;
+color:white;
+cursor:pointer;
 }
 
 </style>
-</head>
 
+</head>
 <body>
 
-<!-- LOGIN PAGE -->
+<!-- ================= LOGIN ================= -->
+
 <div id="page-login" class="page active">
 
 <h2>DMK Portal Login</h2>
 
-<form onsubmit="event.preventDefault(); doLogin();">
-<input id="user" placeholder="Username">
-<input id="pass" type="password" placeholder="Password">
+<form onsubmit="event.preventDefault(); login();">
+
+<input id="email" placeholder="Email">
+<input id="password" type="password" placeholder="Password">
+
 <button>Login</button>
+
 </form>
 
 <p id="err" style="color:red"></p>
@@ -73,10 +83,15 @@ button{
 </div>
 
 
-<!-- DASHBOARD -->
+<!-- ================= DASHBOARD ================= -->
+
 <div id="page-dashboard" class="page">
 
-<h2>Welcome DMK Portal</h2>
+<h2 id="welcome"></h2>
+
+<button onclick="loadOrders()">Load Orders</button>
+
+<pre id="orders"></pre>
 
 <button onclick="logout()">Logout</button>
 
@@ -85,85 +100,118 @@ button{
 
 
 <script>
-/* ===============================
-   SIMPLE ROUTER
-=================================*/
+
+/* =====================================
+   SUPABASE CONNECTION
+===================================== */
+
+const SUPABASE_URL="https://slrjqrynjqftfivoarmw.supabase.co";
+const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNscmpxcnluanFmdGZpdm9hcm13Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MTkyNDQsImV4cCI6MjA5MTI5NTI0NH0.iRKpYEyM4rEkxKM36lMTRFgP8GKDKMP8pTXfo02i4Lg";
+
+const sb = supabase.createClient(
+SUPABASE_URL,
+SUPABASE_KEY
+);
+
+
+/* =====================================
+   ROUTER
+===================================== */
 
 function showPage(name){
 
-document.querySelectorAll('.page')
-.forEach(p=>{
-p.classList.remove('active');
-});
+document.querySelectorAll(".page")
+.forEach(p=>p.classList.remove("active"));
 
 document
-.getElementById('page-'+name)
-.classList.add('active');
+.getElementById("page-"+name)
+.classList.add("active");
 
 }
 
 
-/* ===============================
-   SESSION SYSTEM
-=================================*/
-
-const SESSION="dmk_session";
-
-function saveSession(data){
-localStorage.setItem(SESSION,JSON.stringify(data));
-}
-
-function loadSession(){
-return JSON.parse(localStorage.getItem(SESSION));
-}
-
-function clearSession(){
-localStorage.removeItem(SESSION);
-}
-
-
-/* ===============================
+/* =====================================
    LOGIN
-=================================*/
+===================================== */
 
-function doLogin(){
+async function login(){
 
-const u=user.value;
-const p=pass.value;
+err.innerText="";
 
-if(u==="admin" && p==="123"){
+const {data,error}=
+await sb.auth.signInWithPassword({
+email:email.value,
+password:password.value
+});
 
-saveSession({user:u});
+if(error){
+err.innerText=error.message;
+return;
+}
+
+initUser();
+
+}
+
+
+/* =====================================
+   AUTO SESSION
+===================================== */
+
+async function initUser(){
+
+const {data:{user}}=
+await sb.auth.getUser();
+
+welcome.innerText=
+"Welcome "+(user.email||"User");
 
 showPage("dashboard");
 
-}else{
-err.innerText="Login gagal";
-}
-
 }
 
 
-/* ===============================
+/* =====================================
    LOGOUT
-=================================*/
+===================================== */
 
-function logout(){
-clearSession();
+async function logout(){
+
+await sb.auth.signOut();
+
 showPage("login");
+
 }
 
 
-/* ===============================
-   AUTO LOGIN
-=================================*/
+/* =====================================
+   LOAD DATABASE DATA
+===================================== */
 
-window.addEventListener("DOMContentLoaded",()=>{
+async function loadOrders(){
 
-const session=loadSession();
+const {data,error}=
+await sb
+.from("orders")
+.select("*");
+
+orders.innerText=
+JSON.stringify(data,null,2);
+
+}
+
+
+/* =====================================
+   AUTO LOGIN ON LOAD
+===================================== */
+
+window.addEventListener("DOMContentLoaded",async()=>{
+
+const {data:{session}}=
+await sb.auth.getSession();
 
 if(session){
-showPage("dashboard");
+initUser();
 }else{
 showPage("login");
 }
@@ -174,40 +222,39 @@ showPage("login");
 
 
 
-<!-- ===============================
-     SERVICE WORKER REGISTER
-================================ -->
+<!-- ================= SERVICE WORKER ================= -->
 
 <script>
-if('serviceWorker' in navigator){
 
-window.addEventListener('load',()=>{
+if("serviceWorker" in navigator){
+
+window.addEventListener("load",()=>{
 
 navigator.serviceWorker
-.register('./service-worker.js')
+.register("./service-worker.js")
 .then(()=>console.log("DMK PWA Ready ✅"));
 
 });
 
 }
+
 </script>
 
 
 
-<!-- ===============================
-     INSTALL BUTTON
-================================ -->
+<!-- ================= INSTALL BUTTON ================= -->
 
 <script>
 
 let deferredPrompt;
 
-window.addEventListener('beforeinstallprompt',e=>{
+window.addEventListener("beforeinstallprompt",e=>{
 
 e.preventDefault();
+
 deferredPrompt=e;
 
-const btn=document.createElement('button');
+const btn=document.createElement("button");
 
 btn.innerText="Install DMK App";
 
@@ -223,6 +270,7 @@ btn.remove();
 document.body.appendChild(btn);
 
 });
+
 </script>
 
 </body>
