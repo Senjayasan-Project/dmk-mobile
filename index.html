@@ -2343,7 +2343,7 @@ function selectRole(el, role) {
 }
 
 // ── Login ─────────────────────────────────────────────────────
-function doLogin() { doLoginAsync(); }
+function doLogin() { doLoginAsync().catch(e => { console.error('[DMK] doLogin error:', e); }); }
 
 // ── Logout ────────────────────────────────────────────────────
 function doLogout() {
@@ -3189,14 +3189,10 @@ document.addEventListener('keydown', e => {
 });
 
 // ── DOMContentLoaded ──────────────────────────────────────────
+// Banner offline sudah ditangani oleh listener di atas (script Supabase).
+// Cukup update indikator Supabase setelah DOM siap.
 window.addEventListener('DOMContentLoaded', () => {
   updateSbIndicator();
-  if (!_sb) {
-    const b = document.createElement('div');
-    b.innerHTML = '⚡ <strong>Mode Offline</strong> — Data lokal (demo). Isi SUPABASE_URL & ANON_KEY untuk koneksi database. <button onclick="this.parentElement.remove()" style="margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,.4);color:#fff;padding:2px 10px;border-radius:4px;cursor:pointer;font-size:10px">✕</button>';
-    b.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#B45309;color:#fff;font-size:11px;padding:8px 16px;display:flex;align-items:center;gap:8px;';
-    document.body.appendChild(b);
-  }
 });
 
 
@@ -3910,7 +3906,7 @@ function addAuditLog(action, detail) {
   localStorage.setItem('dmk_audit', JSON.stringify(logs));
 }
 
-function doLoginAsync() {
+async function doLoginAsync() {
   const u = $('loginUser').value.trim();
   const p = $('loginPass').value.trim();
   $('loginErr').style.display = 'none';
