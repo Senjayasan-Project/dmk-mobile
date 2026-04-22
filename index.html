@@ -71,7 +71,7 @@ cursor:pointer;
 
 <form onsubmit="event.preventDefault(); login();">
 
-<input id="email" placeholder="Email">
+<input id="email" placeholder="Username">
 <input id="password" type="password" placeholder="Password">
 
 <button>Login</button>
@@ -108,15 +108,22 @@ cursor:pointer;
 const SUPABASE_URL="https://slrjqrynjqftfivoarmw.supabase.co";
 const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNscmpxcnluanFmdGZpdm9hcm13Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MTkyNDQsImV4cCI6MjA5MTI5NTI0NH0.iRKpYEyM4rEkxKM36lMTRFgP8GKDKMP8pTXfo02i4Lg";
 
+/* ==============================
+   SUPABASE CONNECTION
+============================== */
+
+const SUPABASE_URL="PASTE_PROJECT_URL";
+const SUPABASE_KEY="PASTE_ANON_KEY";
+
 const sb = supabase.createClient(
 SUPABASE_URL,
 SUPABASE_KEY
 );
 
 
-/* =====================================
+/* ==============================
    ROUTER
-===================================== */
+============================== */
 
 function showPage(name){
 
@@ -130,93 +137,97 @@ document
 }
 
 
-/* =====================================
-   LOGIN
-===================================== */
+/* ==============================
+   SESSION
+============================== */
+
+const SESSION="dmk_session";
+
+function saveSession(data){
+localStorage.setItem(SESSION,JSON.stringify(data));
+}
+
+function loadSession(){
+return JSON.parse(localStorage.getItem(SESSION));
+}
+
+function clearSession(){
+localStorage.removeItem(SESSION);
+}
+
+
+/* ==============================
+   LOGIN FROM TABLE user
+============================== */
 
 async function login(){
 
 err.innerText="";
 
-const {data,error}=
-await sb.auth.signInWithPassword({
-email:email.value,
-password:password.value
-});
+const usernameInput =
+document.getElementById("email").value;
 
-if(error){
-err.innerText=error.message;
+const passwordInput =
+document.getElementById("password").value;
+
+
+/* QUERY DATABASE */
+
+const {data,error} = await sb
+.from("user")
+.select("*")
+.eq("username",usernameInput)
+.eq("password",passwordInput)
+.single();
+
+
+if(error || !data){
+err.innerText="Username / Password salah";
 return;
 }
 
-initUser();
 
-}
+/* SAVE SESSION */
 
+saveSession(data);
 
-/* =====================================
-   AUTO SESSION
-===================================== */
-
-async function initUser(){
-
-const {data:{user}}=
-await sb.auth.getUser();
-
-welcome.innerText=
-"Welcome "+(user.email||"User");
+document.getElementById("welcome")
+.innerText="Welcome "+data.username;
 
 showPage("dashboard");
 
 }
 
 
-/* =====================================
-   LOGOUT
-===================================== */
+/* ==============================
+   AUTO LOGIN
+============================== */
 
-async function logout(){
+window.addEventListener("DOMContentLoaded",()=>{
 
-await sb.auth.signOut();
-
-showPage("login");
-
-}
-
-
-/* =====================================
-   LOAD DATABASE DATA
-===================================== */
-
-async function loadOrders(){
-
-const {data,error}=
-await sb
-.from("orders")
-.select("*");
-
-orders.innerText=
-JSON.stringify(data,null,2);
-
-}
-
-
-/* =====================================
-   AUTO LOGIN ON LOAD
-===================================== */
-
-window.addEventListener("DOMContentLoaded",async()=>{
-
-const {data:{session}}=
-await sb.auth.getSession();
+const session=loadSession();
 
 if(session){
-initUser();
+welcome.innerText="Welcome "+session.username;
+showPage("dashboard");
 }else{
 showPage("login");
 }
 
 });
+
+
+/* ==============================
+   LOGOUT
+============================== */
+
+function logout(){
+
+clearSession();
+
+showPage("login");
+
+}
 
 </script>
 
