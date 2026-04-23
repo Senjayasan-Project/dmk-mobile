@@ -3219,7 +3219,7 @@ function renderAdminOrders() {
           <td>${DB.fmtNum(p.tonase)} T</td><td>Rp ${DB.fmtNum(p.harga)}</td>
           <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.lokasi}</td>
           <td>${DB.fmt(p.tanggalPO)}</td><td>${badge(p.status)}</td>
-          <td>${p.status==='pending'?`<button class="btn btn-primary btn-sm" onclick="adminNav('so')">Proses SO</button>`:'—'}</td>
+          <td>${(()=>{const _so=DB.so.find(x=>x.poId===p.id&&x.status==='pending');return p.status==='pending'&&_so?`<button class="btn btn-primary btn-sm" onclick="openSOModal('${_so.id}')">Proses SO</button>`:'—';})()}</td>
         </tr>`).join('')||`<tr><td colspan="9">${emptyState('Belum ada PO.')}</td></tr>`}
         </tbody>
       </table></div>
@@ -3329,7 +3329,7 @@ function renderAdminUsers() {
           <option value="">Semua Role</option><option value="admin">Admin</option><option value="customer">Customer</option>
         </select>
       </div>
-      <button class="btn btn-primary" onclick="openUserModal()">+ Tambah User</button>
+      <button class="btn btn-primary" onclick="openAddUserModal()">+ Tambah User</button>
     </div>
     <div class="tbl-scroll"><table class="tbl" id="users-table">
       <thead><tr><th>ID</th><th>Nama</th><th>Username</th><th>Role</th><th>Perusahaan</th><th>Status</th><th>Aksi</th></tr></thead>
@@ -3361,29 +3361,25 @@ function renderUserRows(users) {
 }
 
 function saveUser() {
-  const name     = ($('umod-name')?.value     || '').trim();
-  const username = ($('umod-username')?.value || '').trim();
-  const pass     =  $('umod-pass')?.value     || '';
-  const role     =  $('umod-role')?.value     || 'customer';
-  const company  = ($('umod-company')?.value  || '').trim();
-  const avatarRaw= ($('umod-avatar')?.value   || '').trim();
+  const name     = ($('uf-name')?.value     || '').trim();
+  const username = ($('uf-username')?.value || '').trim();
+  const pass     =  $('uf-password')?.value || '';
+  const role     =  $('uf-role')?.value     || 'customer';
+  const company  = ($('uf-company')?.value  || '').trim();
 
   // Validasi
-  let ok = true;
-  const setErr = (id, show) => { const e=$(id); if(e) e.style.display = show?'block':'none'; if(show) ok=false; };
-  setErr('err-umod-name',     !name);
-  setErr('err-umod-username', !username);
-  setErr('err-umod-pass',     !editingUserId && !pass);
-  if (!ok) { toast('Lengkapi field yang wajib diisi.', 'error'); return; }
+  if (!name)     { toast('Nama wajib diisi.', 'error'); return; }
+  if (!username) { toast('Username wajib diisi.', 'error'); return; }
+  if (!_editUserId && !pass) { toast('Password wajib diisi untuk user baru.', 'error'); return; }
 
   // Cek duplikat username
-  const dupUser = DB.users.find(x => x.username === username && x.id !== editingUserId);
+  const dupUser = DB.users.find(x => x.username === username && x.id !== _editUserId);
   if (dupUser) { toast('Username sudah digunakan, pilih yang lain.', 'error'); return; }
 
-  const avatar = avatarRaw ? avatarRaw.toUpperCase() : name.slice(0,2).toUpperCase();
+  const avatar = name.slice(0,2).toUpperCase();
 
-  if (editingUserId) {
-    const u = DB.users.find(x => x.id === editingUserId);
+  if (_editUserId) {
+    const u = DB.users.find(x => x.id === _editUserId);
     if (u) {
       u.name = name; u.username = username; u.role = role;
       u.company = company; u.avatar = avatar;
@@ -3905,6 +3901,80 @@ function addAuditLog(action, detail) {
   localStorage.setItem('dmk_audit', JSON.stringify(logs));
 }
 
+
+// ── Master Data helpers ───────────────────────────────────────
+const MD_KEY = 'dmk_masterdata_v1';
+function getMD() {
+  try {
+    const raw = localStorage.getItem(MD_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return {
+    products: [
+      { id:'P001', name:'Aspal Curah', satuan:'Ton', harga:8500000, stok:500, terminal:'Terminal Surabaya' },
+      { id:'P002', name:'Aspal Drum', satuan:'Drum', harga:9200000, stok:300, terminal:'Terminal Semarang' },
+      { id:'P003', name:'Pen 60/70', satuan:'Ton', harga:8800000, stok:400, terminal:'Terminal Surabaya' },
+      { id:'P004', name:'Pen 80/100', satuan:'Ton', harga:8600000, stok:250, terminal:'Terminal Jakarta' },
+    ],
+    terminals: [
+      { id:'T001', name:'Terminal Surabaya', lokasi:'Surabaya, Jawa Timur', kapasitas:'2.000 Ton', status:'Aktif' },
+      { id:'T002', name:'Terminal Semarang', lokasi:'Semarang, Jawa Tengah', kapasitas:'1.500 Ton', status:'Aktif' },
+      { id:'T003', name:'Terminal Jakarta', lokasi:'Tanjung Priok, Jakarta', kapasitas:'3.000 Ton', status:'Aktif' },
+    ],
+    vehicles: [
+      { id:'V001', nopol:'B 9921 XAA', jenis:'Tangki 200T', driver:'Budi Santoso', tlp:'081234567890', status:'Tersedia' },
+      { id:'V002', nopol:'L 7732 VBB', jenis:'Tangki 150T', driver:'Ahmad Fauzi', tlp:'082345678901', status:'Tersedia' },
+      { id:'V003', nopol:'H 5544 WCC', jenis:'Tangki 200T', driver:'Eko Prasetyo', tlp:'083456789012', status:'Dalam Perjalanan' },
+    ]
+  };
+}
+function saveMD(md) {
+  try { localStorage.setItem(MD_KEY, JSON.stringify(md)); } catch(e) {}
+}
+
+// ── User Management helpers ───────────────────────────────────
+function filterUsers() {
+  const q    = ($('user-search')?.value || '').toLowerCase();
+  const role = $('user-role-filter')?.value || '';
+  const tb   = $('users-tbody');
+  if (!tb) return;
+  const filtered = DB.users.filter(u => {
+    const matchQ    = !q || u.name.toLowerCase().includes(q) || u.username.toLowerCase().includes(q);
+    const matchRole = !role || u.role === role;
+    return matchQ && matchRole;
+  });
+  tb.innerHTML = renderUserRows(filtered);
+}
+
+// ── Audit Log helpers ─────────────────────────────────────────
+function renderLogRows(logs) {
+  if (!logs || !logs.length) return '<tr><td colspan="6">' + emptyState('Belum ada audit log.') + '</td></tr>';
+  const dotCls = { Login:'notif-so', 'Edit User':'notif-dr', 'Tambah User':'notif-dr', 'Hapus User':'notif-ttd', 'Master Data':'notif-so' };
+  return logs.map(function(l) {
+    const dot = dotCls[l.action] || 'notif-so';
+    return '<tr>' +
+      '<td style="font-size:11px;white-space:nowrap;">' + l.time + '</td>' +
+      '<td class="fw-500">' + (l.user||'—') + '</td>' +
+      '<td><span class="badge ' + (l.role==='admin'?'badge-released':'badge-info') + '">' + (l.role||'—') + '</span></td>' +
+      '<td><span class="notif-type-dot ' + dot + '" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>' + (l.action||'—') + '</td>' +
+      '<td style="font-size:11px;color:var(--muted);max-width:200px;">' + (l.detail||'—') + '</td>' +
+      '<td style="font-size:11px;font-family:monospace;">' + (l.ip||'—') + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function filterLogs() {
+  const q    = ($('log-search')?.value || '').toLowerCase();
+  const user = $('log-role-filter')?.value || '';
+  const logs = JSON.parse(localStorage.getItem('dmk_audit') || '[]');
+  const filtered = logs.filter(l => {
+    const matchQ = !q || (l.action||'').toLowerCase().includes(q) || (l.user||'').toLowerCase().includes(q) || (l.detail||'').toLowerCase().includes(q);
+    const matchU = !user || l.user === user;
+    return matchQ && matchU;
+  });
+  const tb = $('logs-tbody');
+  if (tb) tb.innerHTML = renderLogRows(filtered);
+}
 async function doLoginAsync() {
   const u = $('loginUser').value.trim();
   const p = $('loginPass').value.trim();
