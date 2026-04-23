@@ -7,6 +7,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#0057B8"/>
+<meta name="apple-mobile-web-app-title" content="DMK Portal"/>
+<meta name="application-name" content="DMK Portal"/>
+<meta name="msapplication-TileColor" content="#0057B8"/>
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%230057B8'/><text x='90' y='130' font-size='100' text-anchor='middle' fill='white' font-family='Arial Black,Arial'>D</text></svg>"/>
+<link rel="manifest" id="pwa-manifest"/>
 <title>DMK Portal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
@@ -906,6 +911,49 @@ img{max-width:100%;display:block}
 .page:not(.active) textarea {
   display: none !important;
 }
+
+/* ══════════════════════════════════════════════
+   MOBILE-ADAPTIVE TABLE → CARD STACKING
+══════════════════════════════════════════════ */
+@media(max-width:767px){
+  /* Sembunyikan tabel biasa di mobile */
+  .tbl-scroll { display:none !important; }
+  /* Tampilkan card stack sebagai gantinya */
+  .mobile-cards { display:block !important; }
+}
+@media(min-width:768px){
+  /* Di desktop: sembunyikan card stack */
+  .mobile-cards { display:none !important; }
+}
+.mobile-cards { display:none; }
+
+/* Card item dalam mobile-cards */
+.mc-item {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--r-lg);
+  padding:14px 16px;
+  margin-bottom:10px;
+}
+.mc-item:last-child { margin-bottom:0; }
+.mc-header {
+  display:flex;justify-content:space-between;align-items:flex-start;
+  margin-bottom:10px;
+}
+.mc-title { font-size:14px;font-weight:700;color:var(--blue); }
+.mc-sub { font-size:12px;color:var(--text-muted);margin-top:2px; }
+.mc-body { display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-bottom:10px; }
+.mc-field { display:flex;flex-direction:column;gap:2px; }
+.mc-label { font-size:10px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:var(--text-muted); }
+.mc-value { font-size:13px;color:var(--text-primary); }
+.mc-value.full { grid-column:1/-1; }
+.mc-footer { display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border);padding-top:10px;margin-top:6px; }
+.mc-footer .btn { flex:1;text-align:center; }
+
+/* Filter bar mobile */
+.filter-bar { display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap; }
+.filter-bar .form-input,.filter-bar .form-select { flex:1;min-width:120px; }
+
 </style>
 </head>
 
@@ -3012,10 +3060,14 @@ function submitDO() {
 
 // ── Track Modal ───────────────────────────────────────────────
 let currentDOId = null;
+let _trackFromNav = 'tracking';
 function openTrackModal(doId) {
   const d = DB.doList.find(x => x.id === doId);
   if (!d) { toast('DO tidak ditemukan', 'error'); return; }
   currentDOId = doId;
+  // detect which admin sub-page is currently active
+  const activeSnl = document.querySelector('[id^="asnl-"].active');
+  _trackFromNav = activeSnl ? activeSnl.id.replace('asnl-','') : 'tracking';
   $('modal-track-info').textContent = (d.noDO||doId) + ' — ' + d.customerName + ' · ' + d.noKendaraan;
   $('track-status').value = d.trackStatus || 'loading';
   $('track-do-status').value = d.status || 'posted';
@@ -3027,15 +3079,17 @@ function submitTracking() {
   const ds = $('track-do-status').value;
   const cat = $('track-catatan').value.trim();
   const d = DB.doList.find(x => x.id === currentDOId);
-  if (!d) return;
-  d.trackStatus = ts; d.status = ds;
+  if (!d) { toast('DO tidak ditemukan.','error'); return; }
+  d.trackStatus = ts;
+  d.status = ds;
+  if (cat) { d.lastCatatan = cat; }
   lsSave();
-  if (_sb) API.updateDO(currentDOId, ts, ds, cat).catch(console.error);
-  addAuditLog('Update DO', (d.noDO||currentDOId) + ' → ' + ts + ' / ' + ds);
+  if (_sb) API.updateDOTracking(currentDOId, ts).catch(console.error);
+  addAuditLog('Update DO', (d.noDO||currentDOId) + ' → ' + (TRACK_MAP[ts]||ts) + ' / ' + ds);
   closeModal('modal-track');
   toast('Status pengiriman diperbarui!','success');
   updateAdminBadges();
-  adminNav('tracking');
+  adminNav(_trackFromNav || 'tracking');
 }
 
 // ── Verify Modal ──────────────────────────────────────────────
@@ -3223,6 +3277,24 @@ function renderAdminOrders() {
         </tr>`).join('')||`<tr><td colspan="9">${emptyState('Belum ada PO.')}</td></tr>`}
         </tbody>
       </table></div>
+      <!-- Mobile PO cards -->
+      <div class="mobile-cards">${DB.po.slice().reverse().map(p=>{
+        const _so=DB.so.find(x=>x.poId===p.id&&x.status==='pending');
+        const btnSO=p.status==='pending'&&_so?`<button class="btn btn-primary btn-sm" onclick="openSOModal('${_so.id}')">Proses SO</button>`:'';
+        return `<div class="mc-item">
+          <div class="mc-header"><div><div class="mc-title">${p.noPO||p.id}</div><div class="mc-sub">${p.customerName}</div></div>${badge(p.status)}</div>
+          <div class="mc-body">
+            <div class="mc-field"><span class="mc-label">Produk</span><span class="mc-value">${p.product}</span></div>
+            <div class="mc-field"><span class="mc-label">Tonase</span><span class="mc-value">${DB.fmtNum(p.tonase)} Ton</span></div>
+            <div class="mc-field"><span class="mc-label">Harga/Ton</span><span class="mc-value">Rp ${DB.fmtNum(p.harga)}</span></div>
+            <div class="mc-field"><span class="mc-label">Tanggal</span><span class="mc-value">${DB.fmt(p.tanggalPO)}</span></div>
+            <div class="mc-field mc-value full"><span class="mc-label">Lokasi</span><span class="mc-value">${p.lokasi}</span></div>
+          </div>
+          ${btnSO?'<div class="mc-footer">'+btnSO+'</div>':''}
+        </div>`;
+      }).join('')||`<div class="empty-wrap">${emptyState('Belum ada PO.')}</div>`}
+      </div>
+      </table></div>
     </div>
     <div class="tab-panel" id="om-so">
       <div class="tbl-scroll"><table class="tbl">
@@ -3234,6 +3306,23 @@ function renderAdminOrders() {
           <td>${badge(s.status)}</td><td style="max-width:160px;font-size:11px;">${s.catatan||'—'}</td>
         </tr>`).join('')||`<tr><td colspan="8">${emptyState('Belum ada SO.')}</td></tr>`}
         </tbody>
+      </table></div>
+      <!-- Mobile SO cards -->
+      <div class="mobile-cards">${DB.so.slice().reverse().map(s=>{
+        const _p=DB.po.find(x=>x.id===s.poId);
+        const refPO=_p?(_p.noPO||_p.id):(s.poId||'—');
+        return `<div class="mc-item">
+          <div class="mc-header"><div><div class="mc-title">${s.noSO||s.id}</div><div class="mc-sub">Ref. PO: ${refPO}</div></div>${badge(s.status)}</div>
+          <div class="mc-body">
+            <div class="mc-field"><span class="mc-label">Customer</span><span class="mc-value">${s.customerName}</span></div>
+            <div class="mc-field"><span class="mc-label">Produk</span><span class="mc-value">${s.product}</span></div>
+            <div class="mc-field"><span class="mc-label">Total Ton</span><span class="mc-value">${DB.fmtNum(s.tonaseTotal)} T</span></div>
+            <div class="mc-field"><span class="mc-label">Sisa Ton</span><span class="mc-value">${DB.fmtNum(s.tonaseSisa||s.tonaseTotal)} T</span></div>
+            ${s.catatan?'<div class="mc-field" style="grid-column:1/-1"><span class="mc-label">Catatan</span><span class="mc-value" style="font-size:12px;color:var(--text-muted)">'+s.catatan+'</span></div>':''}
+          </div>
+        </div>`;
+      }).join('')||`<div class="empty-wrap">${emptyState('Belum ada SO.')}</div>`}
+      </div>
       </table></div>
     </div>
   </div>`;
@@ -3268,6 +3357,23 @@ function renderAdminDelivery() {
         </tr>`).join('')||`<tr><td colspan="9">${emptyState('Belum ada DR.')}</td></tr>`}
         </tbody>
       </table></div>
+      <!-- Mobile DR cards -->
+      <div class="mobile-cards">${DB.dr.slice().reverse().map(d=>{
+        const _s=DB.so.find(x=>x.id===d.soId);
+        const refSO=_s?(_s.noSO||_s.id):(d.soId||'—');
+        return `<div class="mc-item">
+          <div class="mc-header"><div><div class="mc-title">${d.noDR||d.id}</div><div class="mc-sub">${d.customerName} · Ref. SO: ${refSO}</div></div>${badge(d.status)}</div>
+          <div class="mc-body">
+            <div class="mc-field"><span class="mc-label">Produk</span><span class="mc-value">${d.product||'—'}</span></div>
+            <div class="mc-field"><span class="mc-label">Tonase</span><span class="mc-value">${DB.fmtNum(d.tonase)} Ton</span></div>
+            <div class="mc-field"><span class="mc-label">Tgl Kirim</span><span class="mc-value">${DB.fmt(d.tanggalKirim)}</span></div>
+            <div class="mc-field"><span class="mc-label">Tujuan</span><span class="mc-value">${d.tujuan}</span></div>
+          </div>
+          ${d.status==='pending'?'<div class="mc-footer"><button class="btn btn-primary btn-sm" onclick="openDOModal(\"'+d.id+'\")">Buat DO</button></div>':''}
+        </div>`;
+      }).join('')||`<div class="empty-wrap">${emptyState('Belum ada DR.')}</div>`}
+      </div>
+      </table></div>
     </div>
     <div class="tab-panel" id="dm-do">
       <div class="tbl-scroll"><table class="tbl">
@@ -3281,6 +3387,20 @@ function renderAdminDelivery() {
           <td>${d.status!=='closed'?`<button class="btn btn-ghost btn-sm" onclick="openTrackModal('${d.id}')">Update</button>`:'—'}</td>
         </tr>`).join('')||`<tr><td colspan="9">${emptyState('Belum ada DO.')}</td></tr>`}
         </tbody>
+      </table></div>
+      <!-- Mobile DO cards -->
+      <div class="mobile-cards">${DB.doList.slice().reverse().map(d=>`<div class="mc-item">
+          <div class="mc-header"><div><div class="mc-title">${d.noDO||d.id}</div><div class="mc-sub">${d.customerName}</div></div>${badge(d.status)}</div>
+          <div class="mc-body">
+            <div class="mc-field"><span class="mc-label">Kendaraan</span><span class="mc-value">${d.noKendaraan}</span></div>
+            <div class="mc-field"><span class="mc-label">Driver</span><span class="mc-value">${d.driver}</span></div>
+            <div class="mc-field"><span class="mc-label">Tonase</span><span class="mc-value">${DB.fmtNum(d.tonase)} Ton</span></div>
+            <div class="mc-field"><span class="mc-label">Terminal</span><span class="mc-value">${d.terminal}</span></div>
+            <div class="mc-field" style="grid-column:1/-1"><span class="mc-label">Track Status</span><span class="mc-value"><span class="badge badge-info">${TRACK_MAP[d.trackStatus]||d.trackStatus}</span></span></div>
+          </div>
+          ${d.status!=='closed'?'<div class="mc-footer"><button class="btn btn-secondary btn-sm" onclick="openTrackModal(\"'+d.id+'\")">Update Status</button></div>':''}
+        </div>`).join('')||`<div class="empty-wrap">${emptyState('Belum ada DO.')}</div>`}
+      </div>
       </table></div>
     </div>
   </div>`;
@@ -3322,19 +3442,20 @@ function renderAdminUsers() {
     <h1 class="page-title">User Management</h1>
     <p class="page-sub">Kelola akun pengguna sistem portal DMK Group.</p></div>
   <div class="container">
-    <div class="flex justify-between mb-24">
-      <div class="flex-between" style="gap:8px;">
-        <input class="form-input" id="user-search" placeholder="Cari nama / username..." style="width:260px;" oninput="filterUsers()"/>
-        <select class="form-select" id="user-role-filter" onchange="filterUsers()" style="width:160px;">
-          <option value="">Semua Role</option><option value="admin">Admin</option><option value="customer">Customer</option>
-        </select>
-      </div>
-      <button class="btn btn-primary" onclick="openAddUserModal()">+ Tambah User</button>
+    <div class="filter-bar">
+      <input class="form-input" id="user-search" placeholder="Cari nama / username..." oninput="filterUsers()"/>
+      <select class="form-select" id="user-role-filter" onchange="filterUsers()">
+        <option value="">Semua Role</option><option value="admin">Admin</option><option value="customer">Customer</option>
+      </select>
+      <button class="btn btn-primary" onclick="openAddUserModal()" style="white-space:nowrap">+ Tambah</button>
     </div>
+    <!-- Desktop: tabel -->
     <div class="tbl-scroll"><table class="tbl" id="users-table">
       <thead><tr><th>ID</th><th>Nama</th><th>Username</th><th>Role</th><th>Perusahaan</th><th>Status</th><th>Aksi</th></tr></thead>
       <tbody id="users-tbody">${renderUserRows(users)}</tbody>
     </table></div>
+    <!-- Mobile: cards -->
+    <div class="mobile-cards" id="users-cards">${renderUserCards(users)}</div>
   </div>`;
 }
 
@@ -3360,6 +3481,31 @@ function renderUserRows(users) {
   }).join('');
 }
 
+
+function renderUserCards(users) {
+  if (!users?.length) return '<div class="empty-wrap">' + emptyState('Belum ada pengguna.') + '</div>';
+  return users.map(function(u) {
+    const roleBadge = u.role === 'admin'
+      ? '<span class="badge badge-released">Admin</span>'
+      : '<span class="badge badge-info">Customer</span>';
+    const uid = u.id;
+    const canDelete = u.role !== 'admin' || DB.users.filter(x=>x.role==='admin').length > 1;
+    return '<div class="mc-item">' +
+      '<div class="mc-header">' +
+        '<div><div class="mc-title">' + u.name + '</div><div class="mc-sub">' + u.username + ' · ' + uid + '</div></div>' +
+        roleBadge +
+      '</div>' +
+      '<div class="mc-body">' +
+        '<div class="mc-field"><span class="mc-label">Perusahaan</span><span class="mc-value">' + (u.company||'—') + '</span></div>' +
+        '<div class="mc-field"><span class="mc-label">Status</span><span class="mc-value"><span class="badge badge-approved">Aktif</span></span></div>' +
+      '</div>' +
+      '<div class="mc-footer">' +
+        '<button class="btn btn-secondary btn-sm" onclick="editUser(\"' + uid + '\")">Edit</button>' +
+        (canDelete && u.id !== DB.session?.id ? '<button class="btn btn-danger btn-sm" onclick="deleteUser(\"' + uid + '\")">Hapus</button>' : '') +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
 function saveUser() {
   const name     = ($('uf-name')?.value     || '').trim();
   const username = ($('uf-username')?.value || '').trim();
@@ -3395,8 +3541,8 @@ function saveUser() {
   lsSave();
   closeModal('modal-user');
   toast('Data user berhasil disimpan.', 'success');
-  const tb = $('users-tbody');
-  if (tb) tb.innerHTML = renderUserRows(DB.users);
+  const tb = $('users-tbody'); if (tb) tb.innerHTML = renderUserRows(DB.users);
+  const mc = $('users-cards'); if (mc) mc.innerHTML = renderUserCards(DB.users);
 }
 
 function deleteUser(id) {
@@ -3432,8 +3578,8 @@ function deleteUser(id) {
   lsSave();
   addAuditLog('Hapus User', 'User ' + u.username + ' (' + u.role + ') dihapus oleh ' + DB.session?.name);
   toast('User ' + u.name + ' berhasil dihapus.', 'success');
-  const tb = $('users-tbody');
-  if (tb) tb.innerHTML = renderUserRows(DB.users);
+  const tb = $('users-tbody'); if (tb) tb.innerHTML = renderUserRows(DB.users);
+  const mc = $('users-cards'); if (mc) mc.innerHTML = renderUserCards(DB.users);
   updateAdminBadges();
 }
 
@@ -3458,6 +3604,7 @@ function renderAdminMasterData() {
         <thead><tr><th>ID</th><th>Nama Produk</th><th>Satuan</th><th>Harga/Ton (Rp)</th><th>Stok (Ton)</th><th>Terminal</th><th>Aksi</th></tr></thead>
         <tbody id="md-prod-tbody">${renderMDProductRows(md.products)}</tbody>
       </table></div>
+      <div class="mobile-cards" id="md-prod-cards">${renderMDProductCards(md.products)}</div>
     </div>
     <!-- TAB TERMINAL -->
     <div class="tab-panel" id="md-terminals">
@@ -3469,6 +3616,7 @@ function renderAdminMasterData() {
         <thead><tr><th>ID</th><th>Nama Terminal</th><th>Lokasi</th><th>Kapasitas</th><th>Status</th><th>Aksi</th></tr></thead>
         <tbody id="md-term-tbody">${renderMDTerminalRows(md.terminals)}</tbody>
       </table></div>
+      <div class="mobile-cards" id="md-term-cards">${renderMDTerminalCards(md.terminals)}</div>
     </div>
     <!-- TAB ARMADA -->
     <div class="tab-panel" id="md-vehicles">
@@ -3480,6 +3628,7 @@ function renderAdminMasterData() {
         <thead><tr><th>ID</th><th>No. Polisi</th><th>Jenis</th><th>Driver</th><th>Telepon</th><th>Status</th><th>Aksi</th></tr></thead>
         <tbody id="md-veh-tbody">${renderMDVehicleRows(md.vehicles)}</tbody>
       </table></div>
+      <div class="mobile-cards" id="md-veh-cards">${renderMDVehicleCards(md.vehicles)}</div>
     </div>
   </div>`;
 }
@@ -3542,6 +3691,56 @@ function renderMDVehicleRows(rows) {
   }).join('');
 }
 
+
+function renderMDProductCards(rows) {
+  if (!rows.length) return '<div class="empty-wrap">' + emptyState('Belum ada produk.') + '</div>';
+  return rows.map(function(p) {
+    return '<div class="mc-item">' +
+      '<div class="mc-header"><div><div class="mc-title">' + p.name + '</div><div class="mc-sub">' + p.id + '</div></div></div>' +
+      '<div class="mc-body">' +
+        '<div class="mc-field"><span class="mc-label">Satuan</span><span class="mc-value">' + p.satuan + '</span></div>' +
+        '<div class="mc-field"><span class="mc-label">Harga/Ton</span><span class="mc-value">Rp ' + DB.fmtNum(p.harga) + '</span></div>' +
+        '<div class="mc-field"><span class="mc-label">Stok</span><span class="mc-value">' + DB.fmtNum(p.stok) + ' Ton</span></div>' +
+        '<div class="mc-field"><span class="mc-label">Terminal</span><span class="mc-value">' + p.terminal + '</span></div>' +
+      '</div>' +
+      '<div class="mc-footer">' +
+        '<button class="btn btn-secondary btn-sm" onclick="openMDModal(&quot;product&quot;,&quot;' + p.id + '&quot;)">Edit</button>' +
+        '<button class="btn btn-danger btn-sm" onclick="deleteMDItem(&quot;product&quot;,&quot;' + p.id + '&quot;)">Hapus</button>' +
+      '</div></div>';
+  }).join('');
+}
+function renderMDTerminalCards(rows) {
+  if (!rows.length) return '<div class="empty-wrap">' + emptyState('Belum ada terminal.') + '</div>';
+  return rows.map(function(t) {
+    const stsCls = t.status === 'Aktif' ? 'badge-approved' : 'badge-pending';
+    return '<div class="mc-item">' +
+      '<div class="mc-header"><div><div class="mc-title">' + t.name + '</div><div class="mc-sub">' + t.id + '</div></div><span class="badge ' + stsCls + '">' + t.status + '</span></div>' +
+      '<div class="mc-body">' +
+        '<div class="mc-field"><span class="mc-label">Lokasi</span><span class="mc-value">' + t.lokasi + '</span></div>' +
+        '<div class="mc-field"><span class="mc-label">Kapasitas</span><span class="mc-value">' + t.kapasitas + '</span></div>' +
+      '</div>' +
+      '<div class="mc-footer">' +
+        '<button class="btn btn-secondary btn-sm" onclick="openMDModal(&quot;terminal&quot;,&quot;' + t.id + '&quot;)">Edit</button>' +
+        '<button class="btn btn-danger btn-sm" onclick="deleteMDItem(&quot;terminal&quot;,&quot;' + t.id + '&quot;)">Hapus</button>' +
+      '</div></div>';
+  }).join('');
+}
+function renderMDVehicleCards(rows) {
+  if (!rows.length) return '<div class="empty-wrap">' + emptyState('Belum ada armada.') + '</div>';
+  return rows.map(function(v) {
+    const stsCls = v.status === 'Tersedia' ? 'badge-approved' : 'badge-transit';
+    return '<div class="mc-item">' +
+      '<div class="mc-header"><div><div class="mc-title">' + v.nopol + '</div><div class="mc-sub">' + v.id + ' · ' + v.jenis + '</div></div><span class="badge ' + stsCls + '">' + v.status + '</span></div>' +
+      '<div class="mc-body">' +
+        '<div class="mc-field"><span class="mc-label">Driver</span><span class="mc-value">' + v.driver + '</span></div>' +
+        '<div class="mc-field"><span class="mc-label">Telepon</span><span class="mc-value">' + v.tlp + '</span></div>' +
+      '</div>' +
+      '<div class="mc-footer">' +
+        '<button class="btn btn-secondary btn-sm" onclick="openMDModal(&quot;vehicle&quot;,&quot;' + v.id + '&quot;)">Edit</button>' +
+        '<button class="btn btn-danger btn-sm" onclick="deleteMDItem(&quot;vehicle&quot;,&quot;' + v.id + '&quot;)">Hapus</button>' +
+      '</div></div>';
+  }).join('');
+}
 function saveMDItem() {
   const md = getMD();
   const name = $('md-f-name')?.value?.trim();
@@ -3554,6 +3753,7 @@ function saveMDItem() {
     saveMD(md); closeModal('modal-md');
     toast('Produk berhasil disimpan.','success');
     const tb=$('md-prod-tbody'); if(tb) tb.innerHTML=renderMDProductRows(md.products);
+    const mc=$('md-prod-cards'); if(mc) mc.innerHTML=renderMDProductCards(md.products);
 
   } else if (_mdType === 'terminal') {
     const item = { id: _mdId || 'T' + String(md.terminals.length+1).padStart(3,'0'), name, lokasi: $('md-f-lokasi')?.value||'', kapasitas: $('md-f-kapasitas')?.value||'', status: $('md-f-status')?.value||'Aktif' };
@@ -3562,6 +3762,7 @@ function saveMDItem() {
     saveMD(md); closeModal('modal-md');
     toast('Terminal berhasil disimpan.','success');
     const tb=$('md-term-tbody'); if(tb) tb.innerHTML=renderMDTerminalRows(md.terminals);
+    const mc=$('md-term-cards'); if(mc) mc.innerHTML=renderMDTerminalCards(md.terminals);
 
   } else if (_mdType === 'vehicle') {
     const nopol = $('md-f-nopol')?.value?.trim();
@@ -3573,6 +3774,7 @@ function saveMDItem() {
     saveMD(md); closeModal('modal-md');
     toast('Armada berhasil disimpan.','success');
     const tb=$('md-veh-tbody'); if(tb) tb.innerHTML=renderMDVehicleRows(md.vehicles);
+    const mc=$('md-veh-cards'); if(mc) mc.innerHTML=renderMDVehicleCards(md.vehicles);
   }
   addAuditLog('Master Data', (_mdId?'Edit ':'Tambah ') + _mdType + ' ' + name);
 }
@@ -3884,6 +4086,8 @@ function renderAdminAuditLogs() {
       <thead><tr><th>Waktu</th><th>User</th><th>Role</th><th>Aksi</th><th>Detail</th><th>IP Address</th></tr></thead>
       <tbody id="logs-tbody">${renderLogRows(logs)}</tbody>
     </table></div>
+    <!-- Mobile audit cards -->
+    <div class="mobile-cards" id="logs-cards">${renderLogCards(logs)}</div>
   </div>`;
 }
 
@@ -3936,14 +4140,13 @@ function saveMD(md) {
 function filterUsers() {
   const q    = ($('user-search')?.value || '').toLowerCase();
   const role = $('user-role-filter')?.value || '';
-  const tb   = $('users-tbody');
-  if (!tb) return;
   const filtered = DB.users.filter(u => {
     const matchQ    = !q || u.name.toLowerCase().includes(q) || u.username.toLowerCase().includes(q);
     const matchRole = !role || u.role === role;
     return matchQ && matchRole;
   });
-  tb.innerHTML = renderUserRows(filtered);
+  const tb = $('users-tbody'); if (tb) tb.innerHTML = renderUserRows(filtered);
+  const mc = $('users-cards'); if (mc) mc.innerHTML = renderUserCards(filtered);
 }
 
 // ── Audit Log helpers ─────────────────────────────────────────
@@ -3972,8 +4175,31 @@ function filterLogs() {
     const matchU = !user || l.user === user;
     return matchQ && matchU;
   });
-  const tb = $('logs-tbody');
-  if (tb) tb.innerHTML = renderLogRows(filtered);
+  const tb = $('logs-tbody'); if (tb) tb.innerHTML = renderLogRows(filtered);
+  const mc = $('logs-cards'); if (mc) mc.innerHTML = renderLogCards(filtered);
+}
+
+function renderLogCards(logs) {
+  if (!logs || !logs.length) return '<div class="empty-wrap">' + emptyState('Belum ada audit log.') + '</div>';
+  const dotCls = { Login:'notif-so', 'Edit User':'notif-dr', 'Tambah User':'notif-dr', 'Hapus User':'notif-ttd', 'Master Data':'notif-so' };
+  return logs.map(function(l) {
+    const dot = dotCls[l.action] || 'notif-so';
+    const roleBadge = l.role === 'admin' ? '<span class="badge badge-released">admin</span>' : '<span class="badge badge-info">' + (l.role||'—') + '</span>';
+    return '<div class="mc-item" style="padding:12px 14px;">' +
+      '<div class="mc-header" style="margin-bottom:6px;">' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+          '<span class="notif-type-dot ' + dot + '" style="display:inline-block;width:8px;height:8px;border-radius:50%;flex-shrink:0;"></span>' +
+          '<div><div class="mc-title" style="font-size:13px;">' + (l.action||'—') + '</div><div class="mc-sub">' + (l.time||'—') + '</div></div>' +
+        '</div>' +
+        roleBadge +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:12px;">' +
+        '<span style="color:var(--text-muted)">User:</span><span class="fw-500">' + (l.user||'—') + '</span>' +
+        '<span style="color:var(--text-muted)">Detail:</span><span style="color:var(--text-secondary)">' + (l.detail||'—') + '</span>' +
+        '<span style="color:var(--text-muted)">IP:</span><span style="font-family:monospace;font-size:11px;">' + (l.ip||'—') + '</span>' +
+      '</div>' +
+    '</div>';
+  }).join('');
 }
 async function doLoginAsync() {
   const u = $('loginUser').value.trim();
@@ -4146,6 +4372,78 @@ function renderVolChart() {
 function renderStatusChart() { /* Chart rendered inline in reports */ }
 function renderProductChart() { /* Chart rendered inline in reports */ }
 
+</script>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  PWA: Manifest dinamis + Service Worker
+// ══════════════════════════════════════════════════════
+(function() {
+  // Buat manifest dinamis
+  const manifest = {
+    name: 'DMK Portal',
+    short_name: 'DMK',
+    description: 'Portal Customer & Admin DMK Group',
+    start_url: location.href,
+    display: 'standalone',
+    orientation: 'portrait-primary',
+    background_color: '#0057B8',
+    theme_color: '#0057B8',
+    icons: [
+      {
+        src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAACXBIWXMAAAsTAAALEwEAmpwYAAAF",
+        sizes: '192x192', type: 'image/png'
+      }
+    ]
+  };
+  // Buat SVG icon sebagai data URL
+  const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+    <rect width="512" height="512" rx="80" fill="#0057B8"/>
+    <text x="256" y="360" font-size="280" text-anchor="middle" fill="white" font-family="Arial Black,Arial,sans-serif" font-weight="900">D</text>
+  </svg>`;
+  const iconUrl = 'data:image/svg+xml,' + encodeURIComponent(svgIcon);
+  manifest.icons = [
+    { src: iconUrl, sizes: '192x192', type: 'image/svg+xml', purpose: 'any maskable' },
+    { src: iconUrl, sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' }
+  ];
+
+  const blob = new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'});
+  const url  = URL.createObjectURL(blob);
+  const el   = document.getElementById('pwa-manifest');
+  if (el) el.href = url;
+
+  // Register inline Service Worker via blob
+  if ('serviceWorker' in navigator) {
+    const swCode = `
+const CACHE = 'dmk-portal-v1';
+const ASSETS = [location.href || '/'];
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll([])).then(() => self.skipWaiting()));
+});
+self.addEventListener('activate', e => {
+  e.waitUntil(clients.claim());
+});
+self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
+  // Network first, cache fallback
+  e.respondWith(
+    fetch(e.request).then(res => {
+      if (res && res.status === 200 && res.type === 'basic') {
+        const clone = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+      }
+      return res;
+    }).catch(() => caches.match(e.request))
+  );
+});
+`;
+    const swBlob = new Blob([swCode], {type: 'application/javascript'});
+    const swUrl  = URL.createObjectURL(swBlob);
+    navigator.serviceWorker.register(swUrl, {scope: './'})
+      .then(() => console.log('[DMK] Service Worker registered'))
+      .catch(e => console.log('[DMK] SW not registered (blob SW may need https):', e.message));
+  }
+})();
 </script>
 </body>
 </html>
