@@ -957,30 +957,128 @@ img{max-width:100%;display:block}
 /* ═══════════════════════════════════════════════════════
    PHOTO CAPTURE / UPLOAD FEATURE — RECEIPT FORM
    ═══════════════════════════════════════════════════════ */
-.photo-actions{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}
-.photo-btn-cam{flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;border-radius:var(--r-md);background:var(--blue);color:#fff;font-size:13px;font-weight:700;cursor:pointer;border:none;min-height:48px;transition:var(--t-fast);font-family:inherit}
-.photo-btn-cam:active{transform:scale(0.97)}
-.photo-btn-gal{flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;border-radius:var(--r-md);background:var(--surface);color:var(--blue);font-size:13px;font-weight:700;cursor:pointer;border:1.5px solid var(--border-strong);min-height:48px;transition:var(--t-fast);font-family:inherit}
-.photo-btn-gal:active{transform:scale(0.97)}
-.photo-input-hidden{display:none!important}
-.photo-preview-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px}
-@media(min-width:480px){.photo-preview-grid{grid-template-columns:repeat(4,1fr)}}
-.photo-thumb-wrap{position:relative;aspect-ratio:1;border-radius:var(--r-md);overflow:hidden;border:1.5px solid var(--border);background:var(--surface-2);cursor:pointer}
-.photo-thumb-wrap img{width:100%;height:100%;object-fit:cover;display:block}
-.photo-thumb-del{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(155,44,44,0.88);color:#fff;border:none;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1;padding:0}
-.photo-thumb-del:hover{background:var(--red)}
-.photo-thumb-num{position:absolute;bottom:3px;left:4px;font-size:10px;font-weight:700;background:rgba(0,0,0,0.5);color:#fff;padding:1px 5px;border-radius:4px}
-.photo-empty-state{padding:20px;text-align:center;border:2px dashed var(--border-strong);border-radius:var(--r-md);color:var(--text-muted);font-size:13px;display:block}
-.photo-count-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:var(--r-full);background:var(--blue-dim);color:var(--blue);font-size:11px;font-weight:700;margin-bottom:10px}
-.photo-count-badge.has-photos{background:var(--green-bg);color:var(--green)}
-.photo-lightbox{position:fixed;inset:0;z-index:999;background:rgba(0,0,0,0.93);display:none;align-items:center;justify-content:center;flex-direction:column;padding:16px}
-.photo-lightbox.open{display:flex}
-.photo-lightbox img{max-width:100%;max-height:80dvh;object-fit:contain;border-radius:var(--r-md)}
-.photo-lightbox-close{position:absolute;top:calc(16px + var(--safe-top));right:16px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.15);color:#fff;border:none;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit}
-.photo-lightbox-nav{display:flex;align-items:center;gap:16px;margin-top:12px}
-.photo-lightbox-nav-btn{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.15);color:#fff;border:none;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s;font-family:inherit}
-.photo-lightbox-nav-btn:hover{background:rgba(255,255,255,0.28)}
-.photo-lightbox-caption{font-size:12px;color:rgba(255,255,255,0.6);text-align:center}
+/* ── Photo Upload Section ── */
+.photo-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.photo-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 10px;
+  border-radius: 9999px;          /* fully rounded */
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 0.5px solid var(--border);
+  min-height: 72px;
+  transition: var(--t-fast);
+  font-family: inherit;
+  line-height: 1.3;
+  text-align: center;
+}
+.photo-btn:active { transform: scale(0.97); }
+.photo-btn span {  /* sub-label */
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.photo-btn-cam {
+  background: var(--blue-dim);
+  color: var(--blue);
+  border-color: var(--blue-glow);
+}
+.photo-btn-cam:hover { background: rgba(0,87,184,0.12); }
+.photo-btn-gal {
+  background: var(--surface);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+.photo-btn-gal:hover { background: var(--surface-2); }
+
+/* ── Badge Counter ── */
+.photo-badge-row { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.photo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  transition: var(--t-fast);
+}
+.photo-badge.has-photos {
+  background: var(--green-bg);
+  color: var(--green);
+  border-color: rgba(15,123,78,0.2);
+}
+.photo-badge-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.7;
+}
+
+/* ── Foto Grid ── */
+.photo-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.photo-thumb-wrap {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  border: 0.5px solid var(--border);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+.photo-thumb-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-thumb-del {
+  position: absolute; top: 4px; right: 4px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--red-bg);
+  color: var(--red);
+  border: 0.5px solid rgba(155,44,44,0.2);
+  font-size: 11px; font-weight: 500;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.photo-thumb-num {
+  position: absolute; bottom: 3px; left: 4px;
+  font-size: 10px; font-weight: 500;
+  background: rgba(0,0,0,0.4); color: #fff;
+  padding: 1px 5px; border-radius: 4px;
+}
+.photo-add-slot {
+  aspect-ratio: 1;
+  border-radius: var(--r-md);
+  border: 1px dashed var(--border-strong);
+  background: var(--surface-2);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text-muted);
+  transition: var(--t-fast);
+}
+.photo-add-slot:hover { background: var(--blue-dim); color: var(--blue); }
+
+/* ── Empty State ── */
+.photo-empty {
+  padding: 20px 16px; text-align: center;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.photo-empty-icon { width: 36px; height: 36px; margin: 0 auto 8px; opacity: 0.25; }
+.photo-empty-text { font-size: 12px; color: var(--text-muted); }
 </style>
 </head>
 
